@@ -1,25 +1,58 @@
-influxdb:
-  image: influxdb:latest
-  container_name: influxdb
-  ports:
-    - "8083:8083"
-    - "8086:8086"
-    - "8090:8090"
-  env_file:
-    - 'env.influxdb'
+version: '2'
+services:
 
-telegraf:
-  image: telegraf:latest
-  container_name: telegraf
-  links:
-    - influxdb
-  volumes:
-    - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+  influxdb:
+    image: influxdb:latest
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb
+    ports:
+      - "8083:8083"
+      - "8086:8086"
+      - "8090:8090"
+    environment:
+      - INFLUXDB_ADMIN_ENABLED=true
 
-grafana:
-  image: grafana/grafana:latest
-  container_name: grafana
-  ports:
-    - "3000:3000"
-  links:
-    - influxdb
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    links:
+      - influxdb
+
+  telegraf:
+    image: telegraf:latest
+    links:
+      - influxdb
+    ports:
+      - "8092:8092/udp"
+      - "8094:8094"
+      - "8125:8125/udp"
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  chronograf:
+    image: chronograf:latest
+    volumes:
+      - ./data/chronograf:/var/lib/chronograf
+    ports:
+      - "8888:8888"
+    links:
+      - influxdb
+  # Define a service for using the influx CLI tool.
+  # docker-compose run influxdb-cli
+  influxdb-cli:
+    image: influxdb:latest
+    entrypoint:
+      - influx
+      - -host
+      - influxdb
+    links:
+      - influxdb
+
+  boxed:
+    image: quay.io/gizm0duck/ruby
+    links:
+      - influxdb
+      - telegraf
+
